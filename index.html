@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 头部元信息保持不变 -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>13张图片滑动展示</title>
+    
+    <!-- Swiper 样式保持不变 -->
+    <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css">
+    
+    <style>
+        /* 样式部分保持不变 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #f0f0f0; }
+        /* ... 其他样式与之前相同 ... */
+    </style>
+</head>
+<body>
+    <div class="swiper-container">
+        <div class="swiper-wrapper">
+            <!-- 修改循环次数为13 -->
+            <script>
+                document.write(
+                    Array.from({length: 13}, (_, i) => `
+                        <div class="swiper-slide">
+                            <img src="img/${i+1}.jpg" alt="图片 ${i+1}">
+                        </div>
+                    `).join('')
+                )
+            </script>
+        </div>
+
+        <!-- 分页器和导航按钮保持不变 -->
+        <div class="swiper-pagination"></div>
+        <div class="swiper-button-next"></div>
+        <div class="swiper-button-prev"></div>
+    </div>
+
+    <!-- Swiper JS 保持不变 -->
+    <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+    
+    <script>
+        // Swiper配置保持不变
+        const swiper = new Swiper('.swiper-container', {
+            loop: true,
+            pagination: { /*...*/ },
+            navigation: { /*...*/ },
+            // 其他参数保持不变...
+        });
+    </script>
+</body>
+</html>
