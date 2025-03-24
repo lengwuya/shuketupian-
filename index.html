@@ -3,10 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>13图稳定版</title>
+    <title>极速图片浏览</title>
     
-    <!-- 本地化样式 -->
+    <!-- 关键首屏样式 -->
     <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --accent-color: #4a90e2;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -14,29 +19,26 @@
         }
 
         body {
-            background: #1a1a1a;
+            background: var(--bg-color);
             font-family: system-ui, sans-serif;
+            overflow: hidden;
         }
 
         .container {
-            width: 100%;
+            width: 100vw;
             height: 100vh;
-            overflow: hidden;
             position: relative;
         }
 
         .slide {
+            position: absolute;
             width: 100%;
             height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
             opacity: 0;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.3s ease;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
         }
 
         .slide.active {
@@ -44,175 +46,258 @@
             z-index: 1;
         }
 
-        .slide img {
-            max-width: 100%;
+        .image-wrapper {
+            position: relative;
+            max-width: 90%;
             max-height: 90vh;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
-        /* 控制按钮 */
-        .controls {
+        .thumbnail {
+            position: absolute;
+            filter: blur(10px);
+            transform: scale(1.1);
+            opacity: 0.6;
+            z-index: 0;
+        }
+
+        .full-image {
+            position: relative;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .loaded .full-image {
+            opacity: 1;
+        }
+
+        /* 加载进度条 */
+        .progress-bar {
             position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 20px;
-            z-index: 2;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--accent-color);
+            z-index: 100;
+            transition: width 0.3s ease;
         }
 
-        button {
-            background: rgba(255,255,255,0.1);
-            border: none;
-            width: 40px;
-            height: 40px;
+        /* 控制按钮优化 */
+        .controls button {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             color: white;
-            font-size: 24px;
+            font-size: 1.8rem;
             cursor: pointer;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(8px);
             transition: all 0.2s ease;
         }
 
-        button:hover {
-            background: rgba(255,255,255,0.2);
-        }
-
-        /* 分页指示器 */
-        .pagination {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            z-index: 2;
-        }
-
-        .dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.3);
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .dot.active {
-            background: #fff;
-            transform: scale(1.2);
-        }
-
-        /* 加载提示 */
-        .loading {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: rgba(255,255,255,0.5);
-            font-size: 14px;
+        @media (max-width: 768px) {
+            .image-wrapper {
+                max-width: 95%;
+                max-height: 85vh;
+            }
+            
+            .controls button {
+                width: 40px;
+                height: 40px;
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="loading">正在加载图片...</div>
-        
-        <!-- 动态生成图片 -->
-        <script>
-            const totalImages = 13;
-            const container = document.currentScript.parentElement;
-
-            // 生成图片结构
-            for (let i = 1; i <= totalImages; i++) {
-                const slide = document.createElement('div');
-                slide.className = 'slide';
-                slide.innerHTML = `
-                    <img 
-                        src="img/${i}.jpg" 
-                        alt="图片 ${i}"
-                        onerror="this.style.display='none';console.error('图片加载失败: ${i}.jpg')"
-                    >
-                `;
-                container.insertBefore(slide, document.querySelector('.loading'));
-            }
-
-            // 生成分页点
-            const pagination = document.createElement('div');
-            pagination.className = 'pagination';
-            for (let i = 0; i < totalImages; i++) {
-                const dot = document.createElement('div');
-                dot.className = 'dot' + (i === 0 ? ' active' : '');
-                dot.addEventListener('click', () => goToSlide(i));
-                pagination.appendChild(dot);
-            }
-            container.appendChild(pagination);
-
-            // 生成控制按钮
-            const controls = document.createElement('div');
-            controls.className = 'controls';
-            controls.innerHTML = `
-                <button onclick="prevSlide()">‹</button>
-                <button onclick="nextSlide()">›</button>
-            `;
-            container.appendChild(controls);
-        </script>
-    </div>
+    <div class="progress-bar"></div>
+    <div class="container"></div>
 
     <script>
-        // 基础配置
-        let currentSlide = 0;
-        const slides = document.querySelectorAll('.slide');
-        const dots = document.querySelectorAll('.dot');
-        const loading = document.querySelector('.loading');
+        (function() {
+            // 配置参数
+            const CONFIG = {
+                totalImages: 13,
+                preloadCount: 2,    // 预加载前后图片数量
+                qualitySteps: {     // 根据网络速度切换质量
+                    'slow': 'low',
+                    '2g': 'low',
+                    '3g': 'medium',
+                    '4g': 'high',
+                    'default': 'high'
+                },
+                basePath: 'img/',
+                versions: {
+                    low: { suffix: '_300.webp', width: 300 },     // 极速版
+                    medium: { suffix: '_800.webp', width: 800 }, // 平衡版
+                    high: { suffix: '.webp', width: 1600 }        // 高清版
+                }
+            };
 
-        // 初始化显示第一张
-        slides[0].classList.add('active');
-        loading.style.display = 'none';
-
-        // 切换逻辑
-        function updateSlide(newIndex) {
-            if (newIndex < 0) newIndex = slides.length - 1;
-            if (newIndex >= slides.length) newIndex = 0;
-
-            slides[currentSlide].classList.remove('active');
-            dots[currentSlide].classList.remove('active');
+            // 初始化系统
+            let currentSlide = 0;
+            let networkType = 'default';
+            const container = document.querySelector('.container');
+            const progressBar = document.querySelector('.progress-bar');
             
-            currentSlide = newIndex;
-            slides[currentSlide].classList.add('active');
-            dots[currentSlide].classList.add('active');
-        }
-
-        function nextSlide() {
-            updateSlide(currentSlide + 1);
-        }
-
-        function prevSlide() {
-            updateSlide(currentSlide - 1);
-        }
-
-        // 添加键盘事件
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowRight') nextSlide();
-            if (e.key === 'ArrowLeft') prevSlide();
-        });
-
-        // 添加触摸滑动
-        let touchStartX = 0;
-        document.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-        }, false);
-
-        document.addEventListener('touchend', (e) => {
-            const touchEndX = e.changedTouches[0].clientX;
-            const diffX = touchStartX - touchEndX;
-            
-            if (Math.abs(diffX) > 50) {
-                diffX > 0 ? nextSlide() : prevSlide();
+            // 检测网络类型
+            function detectNetwork() {
+                const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                if (connection) {
+                    networkType = CONFIG.qualitySteps[connection.effectiveType] || CONFIG.qualitySteps.default;
+                }
+                return networkType;
             }
-        }, false);
+
+            // 创建图片加载器
+            function createImageLoader() {
+                const cache = new Map();
+                
+                return async function loadImage(index, quality) {
+                    if (cache.has(`${index}_${quality}`)) {
+                        return cache.get(`${index}_${quality}`);
+                    }
+
+                    const version = CONFIG.versions[quality];
+                    const img = new Image();
+                    img.src = `${CONFIG.basePath}${index}${version.suffix}`;
+                    
+                    return new Promise((resolve) => {
+                        img.onload = () => {
+                            cache.set(`${index}_${quality}`, img);
+                            resolve(img);
+                        };
+                        img.onerror = () => {
+                            console.error(`Error loading image: ${img.src}`);
+                            resolve(null);
+                        };
+                    });
+                };
+            }
+
+            // 创建幻灯片
+            function createSlides() {
+                const fragment = document.createDocumentFragment();
+                
+                for (let i = 1; i <= CONFIG.totalImages; i++) {
+                    const slide = document.createElement('div');
+                    slide.className = 'slide';
+                    slide.innerHTML = `
+                        <div class="image-wrapper">
+                            <img class="thumbnail" 
+                                 src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" 
+                                 data-src="${CONFIG.basePath}${i}_placeholder.jpg">
+                            <img class="full-image" 
+                                 src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" 
+                                 data-src="${CONFIG.basePath}${i}${CONFIG.versions[networkType].suffix}">
+                        </div>
+                    `;
+                    fragment.appendChild(slide);
+                }
+                
+                container.appendChild(fragment);
+                return document.querySelectorAll('.slide');
+            }
+
+            // 核心加载逻辑
+            async function init() {
+                detectNetwork();
+                const slides = createSlides();
+                const loadImage = createImageLoader();
+                let loadedCount = 0;
+
+                // 更新进度条
+                function updateProgress() {
+                    const progress = (loadedCount / CONFIG.totalImages) * 100;
+                    progressBar.style.width = `${progress}%`;
+                }
+
+                // 渐进式加载策略
+                async function progressiveLoad(index) {
+                    const slide = slides[index];
+                    const wrapper = slide.querySelector('.image-wrapper');
+                    const thumbnail = slide.querySelector('.thumbnail');
+                    const fullImage = slide.querySelector('.full-image');
+
+                    // 1. 加载低质量缩略图
+                    const lowRes = await loadImage(index + 1, 'low');
+                    if (lowRes) {
+                        thumbnail.src = lowRes.src;
+                        thumbnail.style.display = 'block';
+                    }
+
+                    // 2. 加载适配网络质量的图片
+                    const mainImage = await loadImage(index + 1, networkType);
+                    if (mainImage) {
+                        fullImage.src = mainImage.src;
+                        fullImage.onload = () => {
+                            wrapper.classList.add('loaded');
+                            loadedCount++;
+                            updateProgress();
+                        };
+                    }
+
+                    // 3. 后台加载高清版本
+                    if (networkType !== 'high') {
+                        loadImage(index + 1, 'high');
+                    }
+                }
+
+                // 预加载初始图片
+                const initialLoads = [];
+                for (let i = 0; i <= CONFIG.preloadCount; i++) {
+                    initialLoads.push(progressiveLoad(i));
+                }
+                await Promise.all(initialLoads);
+
+                // 激活首张幻灯片
+                slides[0].classList.add('active');
+                progressBar.style.opacity = '0';
+
+                // 滑动控制逻辑
+                function showSlide(index) {
+                    slides[currentSlide].classList.remove('active');
+                    currentSlide = (index + slides.length) % slides.length;
+                    slides[currentSlide].classList.add('active');
+                    
+                    // 预加载相邻图片
+                    for (let i = 1; i <= CONFIG.preloadCount; i++) {
+                        const nextIndex = (currentSlide + i) % slides.length;
+                        if (!slides[nextIndex].dataset.loaded) {
+                            progressiveLoad(nextIndex);
+                            slides[nextIndex].dataset.loaded = true;
+                        }
+                    }
+                }
+
+                // 添加控制事件
+                window.nextSlide = () => showSlide(currentSlide + 1);
+                window.prevSlide = () => showSlide(currentSlide - 1);
+
+                // 添加手势控制
+                let touchStartX = 0;
+                container.addEventListener('touchstart', e => {
+                    touchStartX = e.touches[0].clientX;
+                }, { passive: true });
+
+                container.addEventListener('touchend', e => {
+                    const deltaX = e.changedTouches[0].clientX - touchStartX;
+                    if (Math.abs(deltaX) > 50) {
+                        deltaX > 0 ? prevSlide() : nextSlide();
+                    }
+                }, { passive: true });
+
+                // 键盘控制
+                document.addEventListener('keydown', e => {
+                    if (e.key === 'ArrowLeft') prevSlide();
+                    if (e.key === 'ArrowRight') nextSlide();
+                });
+            }
+
+            // 启动加载
+            init().catch(console.error);
+        })();
     </script>
 </body>
 </html>
